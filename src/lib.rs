@@ -1,3 +1,4 @@
+use std::env;
 use std::fs;
 use std::error::Error;
 
@@ -11,7 +12,13 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     // rather than .expect() and our own error handling
     let contents = fs::read_to_string(config.filename)?;    
 
-    for line in search(&config.query, &contents) {
+    let results = if config.case_sensitive {
+        search(&config.query, &contents)
+    } else {
+        search_case_insensitive(&config.query, &contents)
+    };
+
+    for line in results {
         println!("{}", line);
     }
     // return the unit type (), which i think is just nothing?
@@ -21,6 +28,7 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
 pub struct Config {
     pub query: String,
     pub filename: String,
+    pub case_sensitive: bool,
 }
 
 impl Config {
@@ -34,8 +42,23 @@ impl Config {
         let query = args[1].clone();
         let filename = args[2].clone();
 
+        // case_sensitive is based on the value of the "CASE_INSENSITIVE" environment variable
+        // note env::var returns a result, so it can have an Err value.
+        // it doesn't matter yet what the actual value is, it's going based
+        // on whether its set or unset (is_err returning a bool), hence the no unwrapping
+        // if there are options, it is set on whether the cmd line arguments have 
+        // options or not. Otherwise it uses the Environment variable value
+        // This would work better checking for both s and S, and using one by default if 
+        // env var not set
+        let case_sensitive = if args.len() > 3 {
+            args.contains(&String::from("-s"))
+        } else {
+            env::var("CASE_INSENSITIVE").is_err()
+        };
+        
+
         // default constructor, order as arguments appear in code
-        Ok(Config { query, filename })
+        Ok(Config { query, filename, case_sensitive })
     }
 
     // Extracting the cmd line arguments into a specific configuration.
@@ -66,21 +89,52 @@ pub fn search<'a>(query: &str, contents: &'a str) -> Vec<&'a str> {
     results
 }
 
+pub fn search_case_insensitive<'a>(query: &str, contents: &'a str) -> Vec<&'a str> {
+    // note: the below method creates a new String object, need to allocate new memory
+    // query is shadowed from the argument
+    // need to convert query back to a string slice for .contains()
+    let query = query.to_lowercase();
+    let mut results = Vec::new();
+
+    for line in contents.lines() {
+        if line.to_lowercase().contains(&query) {
+            results.push(line);
+        }
+    }
+
+    results
+}
+
 #[cfg(test)]
 mod tests{
     use super::*;
 
     #[test]
-    fn one_result() {
+    fn case_sensitive() {
         let query = "duct";
         let contents = "\
 Rust:
 safe, fast, productive.
-Pick three.";
+Pick three.
+Duct tape.";
 
         assert_eq!(
             vec!["safe, fast, productive."],
             search(query, contents)
+        );
+    }
+
+    #[test]
+    fn case_insensitive() {
+        let query = "rUsT";
+        let contents = "\
+Rust:
+safe, fast, productive.
+Pick three.
+Trust me.";
+        assert_eq!(
+            vec!["Rust:", "Trust me."],
+            search_case_insensitive(query, contents)
         );
     }
 }
