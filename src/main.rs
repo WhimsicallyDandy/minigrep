@@ -4,7 +4,7 @@ use std::process;
 
 use minigrep::Config;
 
-
+// note we only have error messages printing in main.rs so far
 fn main() {
     // turns cmd line arguments into a String Vector. Need to specify type, as collect can do a lot of data structures
     let args: Vec<String> = env::args().collect();
@@ -16,7 +16,7 @@ fn main() {
     // with the err in vertical bars (|err|) containing the value
     // passed in the Err from the Config constructor
     let config = Config::new(&args).unwrap_or_else(|err| {
-        println!("Problem parsing arguments: {}", err);
+        eprintln!("Problem parsing arguments: {}", err);
         process::exit(1);
     });
 
@@ -24,7 +24,7 @@ fn main() {
     // used instead of above "let config = " because we don't care about
     // keeping a return value, as a successful execution just returns "()"
     if let Err(e) = minigrep::run(config) {
-        println!("Application error: {}", e);
+        eprintln!("Application error: {}", e);
         process::exit(1);
     }
     

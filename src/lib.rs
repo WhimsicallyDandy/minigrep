@@ -48,10 +48,10 @@ impl Config {
         // on whether its set or unset (is_err returning a bool), hence the no unwrapping
         // if there are options, it is set on whether the cmd line arguments have 
         // options or not. Otherwise it uses the Environment variable value
-        // This would work better checking for both s and S, and using one by default if 
-        // env var not set
+        // TODO
+        // if -s or -S is present, use them. If both, print error. otherwise, use env var
         let case_sensitive = if args.len() > 3 {
-            args.contains(&String::from("-s"))
+            !args.contains(&String::from("-S"))
         } else {
             env::var("CASE_INSENSITIVE").is_err()
         };
